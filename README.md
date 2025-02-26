@@ -8,6 +8,8 @@ A small project demonstrating the capabilities of blockchain technology.
 
 Create a new fork of this project on you Github repository.
 
+> Try to use a Chrome-based browser to have a smooth experience. 
+
 ## Start the Development Environment
 
 1. Click on the Code button (green button with a dropdown arrow on the top right).
@@ -129,8 +131,8 @@ We need to setup the [Indexer](https://developer.algorand.org/docs/rest-apis/ind
 
 ```python
     algorand = au.AlgorandClient.from_environment()
-    algod_client = client_configuration()
-    indexer_client = indexer_configuration()
+    algod_client = algorand.client.algod
+    indexer_client = algorand.client.indexer
 ```
 
 You can print these 2 values to check the network configuration is working.
@@ -147,15 +149,20 @@ We will give some Algo to Alice. Bob & Charly will get 1000 by default.
 
 ```python
     alice = account_creation(algorand, "ALICE", au.AlgoAmount(algo=10000))
+    with open(".env", "w") as file:
+        file.write(algosdk.mnemonic.from_private_key(alice.private_key))
     bob = account_creation(algorand, "BOB", au.AlgoAmount(algo=100))
     charly = account_creation(algorand, "CHARLY", au.AlgoAmount(algo=100))
 ```
+> We store the Alice's private key as an example and to reuse it later
 
-## Alice create a new token
+
+## Alice creates a new token
 
 ### Algokit v3 Release
 
 ```python
+    print("Alice Create a Token")
     result = algorand.send.asset_create(
         au.AssetCreateParams(
             sender=alice.address,
@@ -172,25 +179,6 @@ We will give some Algo to Alice. Bob & Charly will get 1000 by default.
     asset_id = result.confirmation["asset-index"]
 ```
 
-> Following line are still true, we just prefer to use the above version
-
-### Create an [Asset Configuration Transaction](https://developer.algorand.org/docs/get-details/transactions/transactions/#asset-configuration-transaction)
-
-```python
-    create_asa_txn =  algosdk.transaction.AssetCreateTxn(
-    sender=alice.address,
-    sp=algod_client.suggested_params(),
-    total=15,
-    decimals=0,
-    default_frozen=False,
-    unit_name="POA", # 8 Max
-    asset_name="Proof of Attendance",
-    url="https://github.com/SudoWeezy/introduction",
-    note="Hello Github",
-    )
-    create_asa_signed = create_asa.sign(alice.private_key)
-```
-
 > On Algorand you can create a token without a smart-contract by using [Algorand Standard Asset](https://developer.algorand.org/docs/get-details/asa/)
 
 ```mermaid
@@ -205,25 +193,12 @@ sequenceDiagram
     Algod-->>Alice: Send x Token
 ```
 
-### [Sign the Transaction](https://developer.algorand.org/docs/get-details/transactions/signatures/)
-
-```python
-    create_asa_tx_id = algod_client.send_transaction(create_asa_signed)
-```
-
-### Send the transaction to the network
-
-```python
-    res = algosdk.transaction.wait_for_confirmation(algod_client, create_asa_tx_id, 4)
-    asset_id = res["asset-index"]
-```
-
 ## Bob buy the token from Alice
 
 ### Algokit v3 Release
 
 ```python
-
+    print("BOB Buy 1 Token at 10 Algo from Alice\n")
     composer = algorand.new_group()
 
     composer.add_asset_opt_in(
@@ -411,9 +386,16 @@ os.system("algokit generate client app/DigitalMarketplace.arc32.json --output cl
 
 ### Interact with the smart contract
 
+#### Define Price
+
+```python
+    price = au.AlgoAmount(algo=10)
+```
+
 #### Initialize the client
 
 ```python
+    print("Alice Create a smart contract")
     import client as cl
 
     factory = algorand.client.get_typed_app_factory(
@@ -434,6 +416,7 @@ os.system("algokit generate client app/DigitalMarketplace.arc32.json --output cl
     )
     app_id = result.app_id
     ac = factory.get_app_client_by_id(app_id, default_sender=alice.address)
+    print(f"App {app_id} deployed with address {ac.app_address}")
 ```
 
 ```mermaid
@@ -526,7 +509,7 @@ sequenceDiagram
             extra_fee=au.AlgoAmount(micro_algo=sp.min_fee)
         )
     )
-    atc = au.AtomicTransactionComposer()
+
     composer.add_app_call_method_call(
         ac.params.buy(
             cl.BuyArgs(
