@@ -129,8 +129,8 @@ We need to setup the [Indexer](https://developer.algorand.org/docs/rest-apis/ind
 
 ```python
     algorand = au.AlgorandClient.from_environment()
-    algod_client = client_configuration()
-    indexer_client = indexer_configuration()
+    algod_client = algorand.client.algod
+    indexer_client = algorand.client.indexer
 ```
 
 You can print these 2 values to check the network configuration is working.
